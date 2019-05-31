@@ -10,10 +10,22 @@ import gadgetron.external.constants as constants
 from .readers import read_byte_string, read_acquisition, read_waveform, read_image
 from .writers import write_image
 
+
+def not_implemented(_):
+    raise NotImplemented()
+
+
+def close(_):
+    pass
+
+
 _readers = {
+    constants.GADGET_MESSAGE_CLOSE: close,
     constants.GADGET_MESSAGE_ISMRMRD_ACQUISITION: read_acquisition,
     constants.GADGET_MESSAGE_ISMRMRD_WAVEFORM: read_waveform,
-    constants.GADGET_MESSAGE_ISMRMRD_IMAGE: read_image
+    constants.GADGET_MESSAGE_ISMRMRD_IMAGE: read_image,
+    constants.GADGET_MESSAGE_ISMRMRD_IMAGE_ARRAY: not_implemented,
+    constants.GADGET_MESSAGE_ISMRMRD_BUFFER: not_implemented
 }
 
 _writers = [
@@ -43,7 +55,7 @@ class Connection:
     def __init__(self, socket):
         self.socket = socket
 
-        self.transformations = {}
+        self.transformations = {constants.GADGET_MESSAGE_CLOSE: Connection.stop_iteration}
         self.raw = Connection.Raw(config=None, header=None)
         self.config, self.raw.config = self.read_config()
         self.header, self.raw.header = self.read_header()
@@ -100,6 +112,11 @@ class Connection:
         return ismrmrd.xsd.CreateFromDocument(header_bytes), header_bytes
 
     @ staticmethod
+    def stop_iteration():
+        logging.debug("Reached end of input.")
+        raise StopIteration()
+
+    @ staticmethod
     def unknown_message_identifier(message_identifier):
         logging.error(f"Received message (id: {message_identifier}) with no registered readers.")
-        raise StopIteration
+        Connection.stop_iteration()
