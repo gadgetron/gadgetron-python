@@ -53,6 +53,10 @@ def indirect_target_provider(args) -> Callable[[connection.Connection], None]:
 def main(args):
     args = dict(zip(['port', 'module', 'target'], args))
 
+    logging.basicConfig(format=f"%(asctime)s.%(msecs)03d %(levelname)s [ext. %(process)d {args.get('module')}] %(message)s",
+                        level=logging.getLevelName(os.environ.get('GADGETRON_EXTERNAL_LOG_LEVEL', 'DEBUG')),
+                        datefmt="%m-%d %H:%M:%S")
+
     logging.debug(f"Starting external Python module '{args.get('module')}' in state: [ACTIVE]")
     logging.debug(f"Connecting to parent on port {args.get('port')}")
 
@@ -66,7 +70,8 @@ def main(args):
 
 
 if __name__ == '__main__':
-    logging.basicConfig(format="%(asctime)s.%(msecs)03d %(levelname)s [ext. Python %(process)d] %(message)s",
-                        level=logging.getLevelName(os.environ.get('GADGETRON_EXTERNAL_LOG_LEVEL', 'DEBUG')),
-                        datefmt="%m-%d %H:%M:%S")
-    main(sys.argv[1:])
+    try:
+        main(sys.argv[1:])
+    except Exception as e:
+        logging.fatal(e)
+        raise e

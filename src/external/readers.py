@@ -2,8 +2,6 @@
 import logging
 import ismrmrd
 
-import binascii
-
 import gadgetron.external.constants as constants
 
 
@@ -28,3 +26,18 @@ def read_waveform(source):
 
 def read_image(source):
     return ismrmrd.Image.deserialize_from(source.read)
+
+
+def read_image_array(source):
+
+    logging.debug("Reading image array from source.")
+
+
+
+
+
+
+
+def read_buffer(source):
+    logging.warning("Reading buffers is not currently implemented.")
+    raise NotImplementedError()

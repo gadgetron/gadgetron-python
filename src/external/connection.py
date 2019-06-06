@@ -7,16 +7,13 @@ import ismrmrd
 
 import gadgetron.external.constants as constants
 
-from .readers import read_byte_string, read_acquisition, read_waveform, read_image
-from .writers import write_image
-
-
-def not_implemented(_):
-    raise NotImplemented()
+from .readers import read_byte_string, read_acquisition, read_waveform, read_image, read_image_array, read_buffer
+from .writers import write_acquisition, write_image
 
 
 def close(_):
-    pass
+    logging.debug("Connection closed normally.")
+    raise StopIteration()
 
 
 _readers = {
@@ -24,12 +21,13 @@ _readers = {
     constants.GADGET_MESSAGE_ISMRMRD_ACQUISITION: read_acquisition,
     constants.GADGET_MESSAGE_ISMRMRD_WAVEFORM: read_waveform,
     constants.GADGET_MESSAGE_ISMRMRD_IMAGE: read_image,
-    constants.GADGET_MESSAGE_ISMRMRD_IMAGE_ARRAY: not_implemented,
-    constants.GADGET_MESSAGE_ISMRMRD_BUFFER: not_implemented
+    constants.GADGET_MESSAGE_ISMRMRD_IMAGE_ARRAY: read_image_array,
+    constants.GADGET_MESSAGE_ISMRMRD_BUFFER: read_buffer
 }
 
 _writers = [
-    (lambda item: isinstance(item, ismrmrd.Image), write_image)
+    (lambda item: isinstance(item, ismrmrd.Acquisition), write_acquisition),
+    (lambda item: isinstance(item, ismrmrd.Image), write_image),
 ]
 
 
@@ -55,13 +53,13 @@ class Connection:
     def __init__(self, socket):
         self.socket = socket
 
-        self.transformations = {constants.GADGET_MESSAGE_CLOSE: Connection.stop_iteration}
         self.raw = Connection.Raw(config=None, header=None)
         self.config, self.raw.config = self.read_config()
         self.header, self.raw.header = self.read_header()
 
     def __next__(self):
-        return self.next()
+        _, item = self.next()
+        return item
 
     def __enter__(self):
         return self
@@ -73,7 +71,10 @@ class Connection:
 
     def __iter__(self):
         while True:
-            yield next(self)
+            try:
+                yield next(self)
+            except StopIteration:
+                return
 
     def send(self, item):
         for predicate, writer in _writers:
@@ -83,12 +84,12 @@ class Connection:
 
     def next(self):
         message_identifier = self.read_message_identifier()
-        transformation = self.transformations.get(message_identifier, lambda x: x)
         reader = _readers.get(message_identifier, lambda *args: Connection.unknown_message_identifier(message_identifier))
-        return transformation(reader(self))
+        return message_identifier, reader(self)
 
     def read(self, nbytes):
-        return self.socket.recv(nbytes, socket.MSG_WAITALL)
+        bytes = self.socket.recv(nbytes, socket.MSG_WAITALL)
+        return bytes if len(bytes) is nbytes else bytes + self.read(nbytes - len(bytes))
 
     def write(self, byte_array):
         self.socket.sendall(byte_array)
@@ -96,7 +97,6 @@ class Connection:
     def read_message_identifier(self):
         identifier_bytes = self.read(constants.SIZEOF_GADGET_MESSAGE_IDENTIFIER)
         identifier = constants.GadgetMessageIdentifier.unpack(identifier_bytes)[0]
-        logging.debug(f"Read message identifier: {identifier}")
         return identifier
 
     def read_config(self):
@@ -113,7 +113,6 @@ class Connection:
 
     @ staticmethod
     def stop_iteration():
-        logging.debug("Reached end of input.")
         raise StopIteration()
 
     @ staticmethod

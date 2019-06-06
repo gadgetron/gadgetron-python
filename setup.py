@@ -6,6 +6,7 @@ setup(
     packages=[
         'gadgetron',
         'gadgetron.util',
+        'gadgetron.legacy',
         'gadgetron.external'
     ],
     package_dir={
