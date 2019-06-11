@@ -1,9 +1,9 @@
 
 import numpy
 import ismrmrd
+import logging
 
-import gadgetron.external.constants as constants
-
+from ..external import constants
 from ..external import handlers
 
 
@@ -19,13 +19,19 @@ def _transform_from_legacy_acquisition(items):
     return acquisition
 
 
+def _transform_to_legacy_waveform(waveform):
+    return waveform,
+
+
 def _transform_to_legacy_image(image):
-    return image.getHead(), numpy.transpose(image.data)
+    return image.getHead(), numpy.transpose(image.data), image.attribute_string
 
 
 def _transform_from_legacy_image(items):
-    header, data = items
-    image = ismrmrd.Image(header)
+    items = list(items) + [""]
+    header, data, meta = items[:3]
+    header.attribute_string_len = len(meta)
+    image = ismrmrd.Image(header, meta)
     image.data[:] = numpy.reshape(numpy.transpose(data), image.data.shape)
     return image
 
@@ -48,22 +54,34 @@ class Gadget:
 
     def __init__(self, *args, **kwargs):
         self.connection = None
+        self.hooks = {
+            constants.GADGET_MESSAGE_ISMRMRD_WAVEFORM:
+                self._process_waveform if hasattr(self, 'process_waveform') else self._ignore_waveform
+        }
 
     def handle(self, connection):
         self.connection = connection
-
         self.process_config(connection.raw.header)
 
-        def iterate_with_mids(conn):
-            while True:
-                try:
-                    yield conn.next()
-                except StopIteration:
-                    return
+        def invoke_process(process, args):
+            if not args:
+                raise ValueError()
+            try:
+                process(*args)
+            except TypeError:
+                invoke_process(process, args[:-1])
 
-        for message_identifier, item in iterate_with_mids(connection):
-            transformation = Gadget._reader_transformations.get(message_identifier)
-            self.process(*transformation(item))
+        for mid, item in connection:
+            if mid in self.hooks:
+                self.hooks.get(mid)(item)
+            else:
+                transformation = Gadget._reader_transformations.get(mid, lambda x: [x])
+                args = transformation(item)
+                try:
+                    invoke_process(self.process, args)
+                except ValueError:
+                    raise TypeError(f"Failed to invoke self.process; arguments do not match. Had arguments: "
+                                    f"{[type(a) for a in args]}")
 
     def process_config(self, config):
         pass
@@ -75,9 +93,11 @@ class Gadget:
         pass
 
     def put_next(self, *args):
-
-        def unknown_output(items):
-            raise TypeError(f"No registered transformation accepted types: {[type(item) for item in items]}")
-
-        transformation = next((trans for pred, trans in Gadget._writer_transformation if pred(args)), unknown_output)
+        transformation = next((trans for pred, trans in Gadget._writer_transformation if pred(args)), lambda x: x[0])
         self.connection.send(transformation(args))
+
+    def _ignore_waveform(self, waveform):
+        self.connection.send(waveform)
+
+    def _process_waveform(self, waveform):
+        self.process_waveform(waveform)

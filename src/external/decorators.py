@@ -1,14 +1,13 @@
 
-import functools
+from . import connection
 
 
 def reader(*, slot):
-    print("Hello, I'm the reader decorator!")
-    return lambda x: x
+    return lambda r: connection.register_reader(slot=slot, reader=r)
 
 
-def writer(func):
-    return func
+def writer(*, predicate):
+    return lambda w: connection.register_writer(predicate=predicate, writer=w)
 
 
 def module(func):

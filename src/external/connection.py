@@ -5,10 +5,10 @@ import xml.etree.ElementTree as xml
 
 import ismrmrd
 
-import gadgetron.external.constants as constants
+from . import constants
 
-from .readers import read_byte_string, read_acquisition, read_waveform, read_image, read_image_array, read_buffer
-from .writers import write_acquisition, write_image
+from .readers import read, read_byte_string, read_acquisition, read_waveform, read_image
+from .writers import write_acquisition, write_waveform, write_image
 
 
 def close(_):
@@ -20,14 +20,13 @@ _readers = {
     constants.GADGET_MESSAGE_CLOSE: close,
     constants.GADGET_MESSAGE_ISMRMRD_ACQUISITION: read_acquisition,
     constants.GADGET_MESSAGE_ISMRMRD_WAVEFORM: read_waveform,
-    constants.GADGET_MESSAGE_ISMRMRD_IMAGE: read_image,
-    constants.GADGET_MESSAGE_ISMRMRD_IMAGE_ARRAY: read_image_array,
-    constants.GADGET_MESSAGE_ISMRMRD_BUFFER: read_buffer
+    constants.GADGET_MESSAGE_ISMRMRD_IMAGE: read_image
 }
 
 _writers = [
     (lambda item: isinstance(item, ismrmrd.Acquisition), write_acquisition),
-    (lambda item: isinstance(item, ismrmrd.Image), write_image),
+    (lambda item: isinstance(item, ismrmrd.Waveform), write_waveform),
+    (lambda item: isinstance(item, ismrmrd.Image), write_image)
 ]
 
 
@@ -54,12 +53,13 @@ class Connection:
         self.socket = socket
 
         self.raw = Connection.Raw(config=None, header=None)
-        self.config, self.raw.config = self.read_config()
-        self.header, self.raw.header = self.read_header()
+        self.config, self.raw.config = self._read_config()
+        self.header, self.raw.header = self._read_header()
+
+        self.filters = []
 
     def __next__(self):
-        _, item = self.next()
-        return item
+        return self.next()
 
     def __enter__(self):
         return self
@@ -83,9 +83,13 @@ class Connection:
         raise TypeError(f"No appropriate writer found for item of type '{type(item)}'")
 
     def next(self):
-        message_identifier = self.read_message_identifier()
-        reader = _readers.get(message_identifier, lambda *args: Connection.unknown_message_identifier(message_identifier))
-        return message_identifier, reader(self)
+        mid, item = self._read_item()
+
+        while not all(pred(item) for pred in self.filters):
+            self.send(item)
+            mid, item = self._read_item()
+
+        return mid, item
 
     def read(self, nbytes):
         bytes = self.socket.recv(nbytes, socket.MSG_WAITALL)
@@ -94,19 +98,27 @@ class Connection:
     def write(self, byte_array):
         self.socket.sendall(byte_array)
 
-    def read_message_identifier(self):
-        identifier_bytes = self.read(constants.SIZEOF_GADGET_MESSAGE_IDENTIFIER)
-        identifier = constants.GadgetMessageIdentifier.unpack(identifier_bytes)[0]
-        return identifier
+    def _read_item(self):
+        message_identifier = self._read_message_identifier()
 
-    def read_config(self):
-        message_identifier = self.read_message_identifier()
+        def unknown_message_identifier(*_):
+            logging.error(f"Received message (id: {message_identifier}) with no registered readers.")
+            Connection.stop_iteration()
+
+        reader = _readers.get(message_identifier, unknown_message_identifier)
+        return message_identifier, reader(self)
+
+    def _read_message_identifier(self):
+        return read(self, constants.GadgetMessageIdentifier)
+
+    def _read_config(self):
+        message_identifier = self._read_message_identifier()
         assert(message_identifier == constants.GADGET_MESSAGE_CONFIG)
         config_bytes = read_byte_string(self)
         return xml.fromstring(config_bytes), config_bytes
 
-    def read_header(self):
-        message_identifier = self.read_message_identifier()
+    def _read_header(self):
+        message_identifier = self._read_message_identifier()
         assert(message_identifier == constants.GADGET_MESSAGE_HEADER)
         header_bytes = read_byte_string(self)
         return ismrmrd.xsd.CreateFromDocument(header_bytes), header_bytes
@@ -115,7 +127,3 @@ class Connection:
     def stop_iteration():
         raise StopIteration()
 
-    @ staticmethod
-    def unknown_message_identifier(message_identifier):
-        logging.error(f"Received message (id: {message_identifier}) with no registered readers.")
-        Connection.stop_iteration()

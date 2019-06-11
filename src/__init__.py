@@ -1,10 +1,25 @@
 
 from . import util
-from . import legacy
 from . import external
 
-from gadgetron.legacy import Gadget
-from gadgetron.legacy import Buffer as IsmrmrdDataBuffered
-from gadgetron.legacy import ImageArray as IsmrmrdImageArray
+from .legacy import Gadget
+from .legacy import ReconData as IsmrmrdReconData
+from .legacy import ReconBit as IsmrmrdReconBit
+from .legacy import ReconBuffer as IsmrmrdDataBuffered
+from .legacy import SamplingDescription
+from .legacy import SamplingLimit
 
-__all__ = [util, legacy, external, Gadget, IsmrmrdDataBuffered, IsmrmrdImageArray]
+from .legacy import ImageArray as IsmrmrdImageArray
+
+__all__ = [
+    util,
+    legacy,
+    external,
+    Gadget,
+    IsmrmrdImageArray,
+    IsmrmrdReconData,
+    IsmrmrdReconBit,
+    IsmrmrdDataBuffered,
+    SamplingDescription,
+    SamplingLimit
+]
