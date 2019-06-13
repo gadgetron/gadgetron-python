@@ -1,5 +1,6 @@
 
 from . import connection
+from . import handlers
 
 
 def reader(*, slot):
@@ -11,4 +12,4 @@ def writer(*, predicate):
 
 
 def module(func):
-    pass
+    handlers.register_handler(func)

@@ -29,7 +29,6 @@ def read_waveforms(source):
 
 @ decorators.reader(slot=GADGET_MESSAGE_ISMRMRD_IMAGE_ARRAY)
 def read_image_array(source):
-
     return ImageArray(
         data=read_array(source, numpy.complex64),
         headers=read_object_array(source, read_image_header),

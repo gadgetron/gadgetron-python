@@ -29,7 +29,10 @@ def direct_target_provider(args) -> Callable[[connection.Connection], None]:
 
 def indirect_target_provider(args) -> Callable[[connection.Connection], None]:
 
-    target = None
+    def default_target(_):
+        raise Exception(f"Found no registered handlers after loading module '{args.get('module')}'")
+
+    target = default_target
 
     def fail_on_registration(handler):
         raise Exception(f"Already registered handler {target}; cannot register second handler {handler}")
@@ -43,9 +46,6 @@ def indirect_target_provider(args) -> Callable[[connection.Connection], None]:
 
     # Modules will register a handler when they load.
     __import__(args.get('module'))
-
-    if target is None:
-        raise Exception(f"Found no registered handlers after loading module '{args.get('module')}'")
 
     return target
 
