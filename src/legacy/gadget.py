@@ -36,6 +36,10 @@ def _transform_from_legacy_image(items):
     return image
 
 
+def _parse_params(xml):
+    return {p.get('name'): p.get('value') for p in xml.iter('property')}
+
+
 class Gadget:
 
     _reader_transformations = {
@@ -54,6 +58,7 @@ class Gadget:
 
     def __init__(self, *args, **kwargs):
         self.connection = None
+        self.params = None
         self.hooks = {
             constants.GADGET_MESSAGE_ISMRMRD_WAVEFORM:
                 self._process_waveform if hasattr(self, 'process_waveform') else self._ignore_waveform
@@ -61,6 +66,7 @@ class Gadget:
 
     def handle(self, connection):
         self.connection = connection
+        self.params = _parse_params(connection.config)
         self.process_config(connection.raw.header)
 
         def invoke_process(process, args):
