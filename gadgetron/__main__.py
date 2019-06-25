@@ -7,6 +7,7 @@ import logging
 
 from typing import Callable
 
+from .version import version
 from .external import handlers, connection
 
 
@@ -50,7 +51,11 @@ def indirect_target_provider(args) -> Callable[[connection.Connection], None]:
     return target
 
 
-def main(args):
+def main(args=None):
+
+    if not args:
+        return print(f"Gadgetron External Module v. {version}")
+
     args = dict(zip(['port', 'module', 'target'], args))
 
     logging.basicConfig(format=f"%(asctime)s.%(msecs)03d %(levelname)s [ext. %(process)d {args.get('module')}] %(message)s",

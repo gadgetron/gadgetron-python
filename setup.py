@@ -1,19 +1,15 @@
 from setuptools import setup
 
+import gadgetron
+
 setup(
     name='gadgetron',
-    version='1.0.0',
+    version=gadgetron.__version__,
     packages=[
-        'gadgetron',
-        'gadgetron.util',
-        'gadgetron.legacy',
-        'gadgetron.external'
+        'gadgetron'
     ],
-    package_dir={
-        'gadgetron': 'src'
-    },
     url='',
-    license='',
+    license='MIT',
     author='Kristoffer Langeland Knudsen',
     author_email='kristofferlknudsen@gradientsoftware.net',
     description='',

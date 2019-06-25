@@ -1,6 +1,10 @@
 
+
 from . import util
+from . import version
 from . import external
+
+__version__ = version.version
 
 from .legacy import Gadget
 from .legacy import ReconData as IsmrmrdReconData
