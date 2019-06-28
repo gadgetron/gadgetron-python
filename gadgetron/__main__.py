@@ -54,7 +54,7 @@ def indirect_target_provider(args) -> Callable[[connection.Connection], None]:
 def main(args=None):
 
     if not args:
-        return print(f"Gadgetron External Module v. {version}")
+        return print(f"Gadgetron External Python Module v. {version}")
 
     args = dict(zip(['port', 'module', 'target'], args))
 

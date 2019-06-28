@@ -1,2 +1,6 @@
 
-version = '0.9.0'
+major = 1
+minor = 0
+build = 0
+
+version = f"{major}.{minor}.{build}"

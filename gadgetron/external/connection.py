@@ -1,6 +1,7 @@
 
 import socket
 import logging
+
 import xml.etree.ElementTree as xml
 
 import ismrmrd
@@ -75,6 +76,11 @@ class Connection:
                 yield next(self)
             except StopIteration:
                 return
+
+    def filter(self, filter):
+        if isinstance(filter, type):
+            return self.filters.append(lambda o: isinstance(o, filter))
+        self.filters.append(filter)
 
     def send(self, item):
         for predicate, writer in _writers:
