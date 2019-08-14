@@ -13,3 +13,4 @@ def writer(*, predicate):
 
 def module(func):
     handlers.register_handler(func)
+    return func
