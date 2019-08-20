@@ -7,7 +7,7 @@ import logging
 from ..external import decorators
 from ..external.readers import read, read_optional, read_array, read_object_array, read_acquisition_header
 from ..external.writers import write_optional, write_array, write_object_array, write_acquisition_header
-from ..external.constants import uint64, GadgetMessageIdentifier, GADGET_MESSAGE_ISMRMRD_BUFFER
+from ..external.constants import uint64, GadgetMessageIdentifier, GADGET_MESSAGE_RECON_DATA
 
 uint16 = struct.Struct('<H')
 
@@ -82,7 +82,7 @@ def read_recon_bits(source):
     return [read_recon_bit(source) for _ in range(size)]
 
 
-@ decorators.reader(slot=GADGET_MESSAGE_ISMRMRD_BUFFER)
+@ decorators.reader(slot=GADGET_MESSAGE_RECON_DATA)
 def read_recon_data(source):
     return ReconData(read_recon_bits(source))
 
@@ -106,7 +106,7 @@ def write_recon_bit(destination, bit):
 
 @ decorators.writer(predicate=lambda item: isinstance(item, ReconData))
 def write_recon_data(destination, recon_data):
-    destination.write(GadgetMessageIdentifier.pack(GADGET_MESSAGE_ISMRMRD_BUFFER))
+    destination.write(GadgetMessageIdentifier.pack(GADGET_MESSAGE_RECON_DATA))
     destination.write(uint64.pack(len(recon_data.bits)))
     for bit in recon_data.bits:
         write_recon_bit(destination, bit)

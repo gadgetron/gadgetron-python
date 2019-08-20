@@ -3,7 +3,7 @@ import numpy
 
 from ..external import decorators
 
-from ..external.constants import uint64, GadgetMessageIdentifier, GADGET_MESSAGE_ISMRMRD_IMAGE_ARRAY
+from ..external.constants import uint64, GadgetMessageIdentifier, GADGET_MESSAGE_IMAGE_ARRAY
 from ..external.readers import read, read_optional, read_array, read_object_array, read_byte_string, read_image_header, read_acquisition_header, read_waveform
 from ..external.writers import write_optional, write_array, write_object_array, write_byte_string, write_image_header, write_acquisition_header, write_waveform
 
@@ -27,7 +27,7 @@ def read_waveforms(source):
     return [read_waveform(source) for _ in range(size)]
 
 
-@ decorators.reader(slot=GADGET_MESSAGE_ISMRMRD_IMAGE_ARRAY)
+@ decorators.reader(slot=GADGET_MESSAGE_IMAGE_ARRAY)
 def read_image_array(source):
     return ImageArray(
         data=read_array(source, numpy.complex64),
@@ -56,7 +56,7 @@ def write_waveforms(destination, waveforms):
 
 @ decorators.writer(predicate=lambda item: isinstance(item, ImageArray))
 def write_image_array(destination, image_array):
-    destination.write(GadgetMessageIdentifier.pack(GADGET_MESSAGE_ISMRMRD_IMAGE_ARRAY))
+    destination.write(GadgetMessageIdentifier.pack(GADGET_MESSAGE_IMAGE_ARRAY))
     write_array(destination, image_array.data)
     write_object_array(destination, image_array.header, write_image_header)
     write_meta_container_vector(destination, image_array.meta)

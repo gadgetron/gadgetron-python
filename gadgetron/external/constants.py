@@ -16,9 +16,9 @@ GADGET_MESSAGE_ISMRMRD_IMAGE_CPLX_FLOAT               = 1009
 GADGET_MESSAGE_ISMRMRD_IMAGE_REAL_FLOAT               = 1010
 GADGET_MESSAGE_ISMRMRD_IMAGE_REAL_USHORT              = 1011
 GADGET_MESSAGE_DICOM                                  = 1012
-GADGET_MESSAGE_ISMRMRD_BUFFER                         = 1020
-GADGET_MESSAGE_ISMRMRD_IMAGE_ARRAY                    = 1021
 GADGET_MESSAGE_ISMRMRD_IMAGE                          = 1022
+GADGET_MESSAGE_RECON_DATA                             = 1023
+GADGET_MESSAGE_IMAGE_ARRAY                            = 1024
 GADGET_MESSAGE_ISMRMRD_WAVEFORM                       = 1026
 GADGET_MESSAGE_EXT_ID_MAX                             = 4096
 
