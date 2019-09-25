@@ -4,11 +4,21 @@ from . import handlers
 
 
 def reader(*, slot):
-    return lambda r: connection.register_reader(slot=slot, reader=r)
+
+    def register_reader(r):
+        connection.register_reader(slot=slot, reader=r)
+        return r
+
+    return register_reader
 
 
 def writer(*, predicate):
-    return lambda w: connection.register_writer(predicate=predicate, writer=w)
+
+    def register_writer(w):
+        connection.register_writer(predicate=predicate, writer=w)
+        return w
+
+    return register_writer
 
 
 def module(func):
