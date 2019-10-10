@@ -20,6 +20,7 @@ GADGET_MESSAGE_ISMRMRD_IMAGE                          = 1022
 GADGET_MESSAGE_RECON_DATA                             = 1023
 GADGET_MESSAGE_IMAGE_ARRAY                            = 1024
 GADGET_MESSAGE_ISMRMRD_WAVEFORM                       = 1026
+GADGET_MESSAGE_BUCKET                                 = 1050
 GADGET_MESSAGE_EXT_ID_MAX                             = 4096
 
 GadgetMessageIdentifier = struct.Struct('<H')
@@ -27,3 +28,4 @@ GadgetMessageIdentifier = struct.Struct('<H')
 bool = struct.Struct('<?')
 uint32 = struct.Struct('<I')
 uint64 = struct.Struct('<Q')
+uint16 = struct.Struct('<H')

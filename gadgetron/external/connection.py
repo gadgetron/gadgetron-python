@@ -100,7 +100,9 @@ class Connection:
 
     def read(self, nbytes):
         bytes = self.socket.recv(nbytes, socket.MSG_WAITALL)
-        return bytes if len(bytes) is nbytes else bytes + self.read(nbytes - len(bytes))
+        while len(bytes) < nbytes:
+            bytes += self.read(nbytes-len(bytes))
+        return bytes
 
     def write(self, byte_array):
         self.socket.sendall(byte_array)

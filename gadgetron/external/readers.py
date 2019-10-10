@@ -1,6 +1,7 @@
 
 import ctypes
 import ismrmrd
+
 import functools
 
 import numpy
@@ -44,6 +45,10 @@ def read_image_header(source):
 def read_acquisition_header(source):
     header_bytes = source.read(ctypes.sizeof(ismrmrd.AcquisitionHeader))
     return ismrmrd.AcquisitionHeader.from_buffer_copy(header_bytes)
+
+def read_waveform_header(source):
+    header_bytes = source.read(ctypes.sizeof(ismrmrd.WaveformHeader))
+    return ismrmrd.Waveform.from_buffer_copy(header_bytes)
 
 
 def read_gadget_message_length(source, type=constants.uint32):
