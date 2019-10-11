@@ -14,6 +14,7 @@ from .legacy import SamplingDescription
 from .legacy import SamplingLimit
 
 from .legacy import ImageArray as IsmrmrdImageArray
+from .legacy import AcquisitionBucket
 
 __all__ = [
     util,

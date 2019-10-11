@@ -1,5 +1,8 @@
 
-import numpy.fft as fft
+try:
+    import pyfftw.interfaces.numpy_fft as fft
+except ImportError:
+    import numpy.fft as fft
 
 
 def cfftn(data, axes):

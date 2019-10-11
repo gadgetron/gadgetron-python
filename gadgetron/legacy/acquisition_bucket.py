@@ -68,7 +68,6 @@ class bucket_meta(ctypes.Structure):
 
 def read_bucketstats(source):
     count = read(source,uint64)
-    print(count)
     return [AcquisitionBucketStats(*[{s for s in read_vector(source,np.uint16)} for i in range(9)]) for k in range(count)]
 
 
@@ -81,18 +80,14 @@ def read_waveforms(source, sizes):
 def read_data_as_array(source, data_type, shape):
     dtype = np.dtype(data_type)
     bytesize = np.prod(shape) * dtype.itemsize
-    print('Bytesize',bytesize,dtype.itemsize,shape)
     return np.reshape(np.frombuffer(source.read(bytesize), dtype), shape)
 
 
 def read_acquisitions(source, sizes):
-    print("Reading ", sizes.count, "headers")
     headers = [read_acquisition_header(source) for i in range(sizes.count)]
     trajectories = [read_data_as_array(source, np.float32, (
         head.number_of_samples, head.trajectory_dimensions)) if head.trajectory_dimensions > 0 else None for head in
                     headers]
-
-    tmp = [head.active_channels for head in headers]
 
     acqs = [read_data_as_array(source, np.complex64, (head.active_channels, head.number_of_samples)) for head in
             headers]

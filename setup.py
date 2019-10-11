@@ -16,5 +16,6 @@ setup(
     install_requires=[
         'numpy>=1.15.1',
         'ismrmrd>=1.6.1'
+        'pyFFTW>=0.11'
     ]
 )
