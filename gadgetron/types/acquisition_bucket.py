@@ -1,16 +1,18 @@
-import numpy as np
-import struct
+
 import ctypes
 import logging
-from ismrmrd import Acquisition, Waveform
-from ..external import decorators
-from ..external.readers import read, read_acquisition_header,read_vector, read_waveform_header
-from ..external.writers import write_optional, write_array, write_object_array, write_acquisition_header
-from ..external.constants import uint64, GadgetMessageIdentifier, GADGET_MESSAGE_BUCKET
 
+import numpy as np
+
+from ismrmrd import Acquisition, Waveform
+
+from ..external.constants import uint64
+from gadgetron.external.readers import read, read_acquisition_header, read_vector, read_waveform_header
+from gadgetron.external.writers import write_optional, write_array, write_object_array, write_acquisition_header
 
 
 class AcquisitionBucketStats:
+
     def __init__(self, kspace_encode_step_1={}, kspace_encode_step_2={}, slice={}, phase={}, contrast={}, repetition={},
                  set={}, segment={}, average={}):
         self.kspace_encode_step_1 = kspace_encode_step_1
@@ -25,12 +27,12 @@ class AcquisitionBucketStats:
 
 
 class AcquisitionBucket:
-    def __init__(self, data, ref, datastats, refstats, waveform=None):
+    def __init__(self, data, datastats, ref, refstats, waveforms):
         self.data = data
-        self.ref = ref
         self.datastats = datastats
+        self.ref = ref
         self.refstats = refstats
-        self.waveform = waveform
+        self.waveforms = waveforms
 
 
 class bundle_meta(ctypes.Structure):
@@ -66,15 +68,19 @@ class bucket_meta(ctypes.Structure):
         ("waveforms", waveform_meta)
     ]
 
+
 def read_bucketstats(source):
-    count = read(source,uint64)
-    return [AcquisitionBucketStats(*[{s for s in read_vector(source,np.uint16)} for i in range(9)]) for k in range(count)]
+    count = read(source, uint64)
+    return [AcquisitionBucketStats(*[{s for s in read_vector(source, np.uint16)}
+                                     for _ in range(9)])
+            for _ in range(count)]
 
 
 def read_waveforms(source, sizes):
-    headers = [ read_waveform_header(source) for i in range(sizes.count)]
-    data_arrays = [read_data_as_array(source,np.uint32,(header.channels,header.number_of_samples)) for header in headers]
-    return [Waveform(head,data) for (head,data) in zip(headers,data_arrays)]
+    headers = [read_waveform_header(source) for _ in range(sizes.count)]
+    data_arrays = [read_data_as_array(source, np.uint32, (header.channels, header.number_of_samples))
+                   for header in headers]
+    return [Waveform(head, data) for head, data in zip(headers, data_arrays)]
 
 
 def read_data_as_array(source, data_type, shape):
@@ -84,25 +90,27 @@ def read_data_as_array(source, data_type, shape):
 
 
 def read_acquisitions(source, sizes):
-    headers = [read_acquisition_header(source) for i in range(sizes.count)]
-    trajectories = [read_data_as_array(source, np.float32, (
-        head.number_of_samples, head.trajectory_dimensions)) if head.trajectory_dimensions > 0 else None for head in
-                    headers]
+    headers = [read_acquisition_header(source) for _ in range(sizes.count)]
 
-    acqs = [read_data_as_array(source, np.complex64, (head.active_channels, head.number_of_samples)) for head in
-            headers]
-    return [Acquisition(header,data,trajectory) for header,data,trajectory in zip(headers,acqs,trajectories)]
+    trajectories = [read_data_as_array(source, np.float32, (head.number_of_samples, head.trajectory_dimensions))
+                    if head.trajectory_dimensions > 0 else None
+                    for head in headers]
+
+    acqs = [read_data_as_array(source, np.complex64, (head.active_channels, head.number_of_samples))
+            for head in headers]
+
+    return [Acquisition(header, data, trajectory) for header, data, trajectory in zip(headers, acqs, trajectories)]
 
 
-@decorators.reader(slot=GADGET_MESSAGE_BUCKET)
 def read_acquisition_bucket(source):
     meta = bucket_meta.from_buffer_copy(source.read(ctypes.sizeof(bucket_meta)))
-    data = read_acquisitions(source,meta.data)
-    stats = read_bucketstats(source)
-    ref = read_acquisitions(source,meta.reference)
-    refstats = read_bucketstats(source)
-    waveforms = read_waveforms(source,meta.waveforms)
 
-    return AcquisitionBucket(data,ref,stats,refstats,waveforms)
+    return AcquisitionBucket(
+        read_acquisitions(source, meta.data),
+        read_bucketstats(source),
+        read_acquisitions(source, meta.reference),
+        read_bucketstats(source),
+        read_waveforms(source, meta.waveforms)
+    )
 
 

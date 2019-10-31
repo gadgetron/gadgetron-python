@@ -2,12 +2,10 @@
 import numpy
 import struct
 import ctypes
-import logging
 
-from ..external import decorators
-from ..external.readers import read, read_optional, read_array, read_object_array, read_acquisition_header
-from ..external.writers import write_optional, write_array, write_object_array, write_acquisition_header
-from ..external.constants import uint64, GadgetMessageIdentifier, GADGET_MESSAGE_RECON_DATA
+from gadgetron.external.readers import read, read_optional, read_array, read_object_array, read_acquisition_header
+from gadgetron.external.writers import write_optional, write_array, write_object_array, write_acquisition_header
+from gadgetron.external.constants import uint64, GadgetMessageIdentifier, GADGET_MESSAGE_RECON_DATA
 
 uint16 = struct.Struct('<H')
 
@@ -55,6 +53,9 @@ class ReconData:
     def __getitem__(self, item):
         return self.bits[item]
 
+    def __iter__(self):
+        return iter(self.bits)
+
 
 def read_sampling_description(source):
     return SamplingDescription.from_buffer_copy(source.read(ctypes.sizeof(SamplingDescription)))
@@ -82,7 +83,6 @@ def read_recon_bits(source):
     return [read_recon_bit(source) for _ in range(size)]
 
 
-@ decorators.reader(slot=GADGET_MESSAGE_RECON_DATA)
 def read_recon_data(source):
     return ReconData(read_recon_bits(source))
 
@@ -104,7 +104,6 @@ def write_recon_bit(destination, bit):
     write_optional(destination, bit.ref, write_recon_buffer)
 
 
-@ decorators.writer(predicate=lambda item: isinstance(item, ReconData))
 def write_recon_data(destination, recon_data):
     destination.write(GadgetMessageIdentifier.pack(GADGET_MESSAGE_RECON_DATA))
     destination.write(uint64.pack(len(recon_data.bits)))

@@ -46,6 +46,7 @@ def read_acquisition_header(source):
     header_bytes = source.read(ctypes.sizeof(ismrmrd.AcquisitionHeader))
     return ismrmrd.AcquisitionHeader.from_buffer_copy(header_bytes)
 
+
 def read_waveform_header(source):
     header_bytes = source.read(ctypes.sizeof(ismrmrd.WaveformHeader))
     return ismrmrd.Waveform.from_buffer_copy(header_bytes)
@@ -71,4 +72,3 @@ def read_waveform(source):
 
 def read_image(source):
     return ismrmrd.Image.deserialize_from(source.read)
-
