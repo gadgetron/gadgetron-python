@@ -19,7 +19,7 @@ setup(
     description='',
     install_requires=[
         'numpy>=1.15.1',
-        'ismrmrd>=1.6.1'
+        'ismrmrd>=1.6.2'
         'pyFFTW>=0.11'
     ]
 )
