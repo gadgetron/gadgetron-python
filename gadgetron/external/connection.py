@@ -43,8 +43,8 @@ def register_writer(*, predicate, writer):
 
 
 class Connection:
-    """
-    Consider writing some excellent documentation here.
+    """ Connection class representing a remote connection via the Gadgetron protocol
+
     """
 
     class Raw:
@@ -78,18 +78,29 @@ class Connection:
             except StopIteration:
                 return
 
-    def filter(self, filter):
-        if isinstance(filter, type):
-            return self.filters.append(lambda o: isinstance(o, filter))
-        self.filters.append(filter)
+    def filter(self, predicate):
+        """
+         Filters the messages that come through the connection
+        :param predicate: Function returning false if the message should be removed
+        """
+        if isinstance(predicate, type):
+            return self.filters.append(lambda o: isinstance(o, predicate))
+        self.filters.append(predicate)
 
     def send(self, item):
+        """
+        Sends a message via the connection
+        :param item: Message to be sent. Must have corresponding writer
+        """
         for predicate, writer in _writers:
             if predicate(item):
                 return writer(self, item)
         raise TypeError(f"No appropriate writer found for item of type '{type(item)}'")
 
     def next(self):
+        """
+        :return: The next message from the connection
+        """
         mid, item = self._read_item()
 
         while not all(pred(item) for pred in self.filters):
@@ -99,12 +110,22 @@ class Connection:
         return mid, item
 
     def read(self, nbytes):
+        """
+        Reads raw bytes from the connection
+        :param nbytes: Number of bytes to read
+        :return: An array of nbytes bytes
+        """
         bytes = self.socket.recv(nbytes, socket.MSG_WAITALL)
         while len(bytes) < nbytes:
             bytes += self.read(nbytes-len(bytes))
         return bytes
 
     def write(self, byte_array):
+        """
+        Writes an array of bytes to the connection
+        :param byte_array: Bytes to be written
+        :return:
+        """
         self.socket.sendall(byte_array)
 
     def _read_item(self):

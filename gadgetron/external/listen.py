@@ -20,7 +20,13 @@ def wait_for_client_connection(port):
 
 
 def listen(port, handler, *args, **kwargs):
-
+    """
+    Listens on a given port and invokes the handler function with a connection and the provided args and kwargs
+    :param port: Port on which to listen
+    :param handler: Callable which takes a connection and the remaining args
+    :param args:
+    :param kwargs:
+    """
     logging.debug(f"Starting external Python module '{handler.__name__}' in state: [PASSIVE]")
     logging.debug(f"Waiting for connection from client on port: {port}")
 
