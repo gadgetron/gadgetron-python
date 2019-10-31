@@ -1,11 +1,11 @@
 
+import time
 import logging
 import ismrmrd
+
 import numpy as np
 
 from gadgetron.util.cfft import cfftn, cifftn
-
-from .shared import Slice
 
 
 def noise_adjustment(iterable, header):
@@ -73,7 +73,7 @@ def remove_oversampling(iterable, header):
         yield crop_acquisition(acq)
 
 
-def create_slice_from_acquisitions(iterable, header):
+def create_buffer_from_acquisitions(iterable, header):
     # To form images, we need a full slice of data. We accumulate acquisitions until we reach the
     # end of a slice. The acquisitions are then combined in a single buffer, which is passed
     # on. We also pass on a reference acquisition header. We use it later to initialize image metadata.
@@ -81,12 +81,15 @@ def create_slice_from_acquisitions(iterable, header):
     acquisitions = []
     matrix_size = header.encoding[0].encodedSpace.matrixSize
 
-    def assemble_slice_data(acqs):
+    def assemble_buffer(acqs):
         logging.debug(f"Assembling buffer from {len(acqs)} acquisitions.")
 
+        number_of_channels = acqs[0].data.shape[0]
+        number_of_samples = acqs[0].data.shape[1]
+
         buffer = np.zeros(
-            (acqs[0].data.shape[0],
-             acqs[0].data.shape[1],
+            (number_of_channels,
+             number_of_samples,
              matrix_size.y,
              matrix_size.z),
             dtype=np.complex64
@@ -100,5 +103,58 @@ def create_slice_from_acquisitions(iterable, header):
     for acquisition in iterable:
         acquisitions.append(acquisition)
         if acquisition.is_flag_set(ismrmrd.ACQ_LAST_IN_SLICE):
-            yield Slice(reference=acquisition, data=assemble_slice_data(acquisitions))
+            yield acquisition, assemble_buffer(acquisitions)
             acquisitions = []
+
+
+def reconstruct_images(iterable):
+    # Reconstruction is an inverse fft.
+
+    for reference, buffer in iterable:
+        yield reference, cifftn(buffer, axes=[1, 2, 3])
+
+
+def combine_channels(iterable):
+    # The buffer contains complex images, one for each channel. We combine these into a single image
+    # through a sum of squares along the channels (axis 0).
+
+    for reference, buffer in iterable:
+        yield reference, np.sqrt(np.sum(np.square(np.abs(buffer)), axis=0))
+
+
+def create_ismrmrd_images(iterable):
+    # The buffer contains the finished image. We wrap it in an ISMRMRD data structure, so the connection
+    # can send it back to the client. We provide a reference acquisition to properly initialize the
+    # image header with delicious metadata; feel the good karma!
+
+    for reference, buffer in iterable:
+        yield ismrmrd.image.Image.from_array(buffer, acquisition=reference)
+
+
+def recon_acquisitions(connection):
+    logging.info("Python reconstruction running - reconstructing images from acquisitions.")
+
+    start = time.time()
+
+    # Connections are iterable - iterating them can be done once, and will yield the data sent from Gadgetron.
+    # In this example, we use a nested sequence of generators (https://wiki.python.org/moin/Generators) each
+    # responsible for part of the reconstruction. In this manner, we construct a succession of generators, each
+    # one producing output that is one step closer to the final product. Iterating the final iterator yields
+    # output-ready images.
+
+    iterable = noise_adjustment(connection, connection.header)
+    iterable = remove_oversampling(iterable, connection.header)
+    iterable = create_buffer_from_acquisitions(iterable, connection.header)
+    iterable = reconstruct_images(iterable)
+    iterable = combine_channels(iterable)
+    iterable = create_ismrmrd_images(iterable)
+
+    # We're only interested in acquisitions in this example, so we filter the connection. Anything filtered out in
+    # this way will pass back to Gadgetron unchanged.
+    connection.filter(ismrmrd.Acquisition)
+
+    for image in iterable:
+        logging.debug("Sending image back to client.")
+        connection.send(image)
+
+    logging.info(f"Python reconstruction done. Duration: {(time.time() - start):.2f} s")
