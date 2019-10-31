@@ -6,7 +6,11 @@ setup(
     name='gadgetron',
     version=gadgetron.__version__,
     packages=[
-        'gadgetron'
+        'gadgetron',
+        'gadgetron.util',
+        'gadgetron.external',
+        'gadgetron.examples',
+        'gadgetron.legacy'
     ],
     url='',
     license='MIT',

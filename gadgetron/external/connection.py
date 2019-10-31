@@ -1,5 +1,4 @@
 
-import time
 import socket
 import logging
 
@@ -12,34 +11,9 @@ from . import constants
 from .readers import read, read_byte_string, read_acquisition, read_waveform, read_image
 from .writers import write_acquisition, write_waveform, write_image
 
-
-def close(_):
-    logging.debug("Connection closed normally.")
-    raise StopIteration()
-
-
-_readers = {
-    constants.GADGET_MESSAGE_CLOSE: close,
-    constants.GADGET_MESSAGE_ISMRMRD_ACQUISITION: read_acquisition,
-    constants.GADGET_MESSAGE_ISMRMRD_WAVEFORM: read_waveform,
-    constants.GADGET_MESSAGE_ISMRMRD_IMAGE: read_image
-}
-
-_writers = [
-    (lambda item: isinstance(item, ismrmrd.Acquisition), write_acquisition),
-    (lambda item: isinstance(item, ismrmrd.Waveform), write_waveform),
-    (lambda item: isinstance(item, ismrmrd.Image), write_image)
-]
-
-
-def register_reader(*, slot, reader):
-    global _readers
-    _readers[slot] = reader
-
-
-def register_writer(*, predicate, writer):
-    global _writers
-    _writers.append((predicate, writer))
+from ..types.image_array import ImageArray, read_image_array, write_image_array
+from ..types.recon_data import ReconData, read_recon_data, write_recon_data
+from ..types.acquisition_bucket import read_acquisition_bucket
 
 
 class Connection:
@@ -53,6 +27,9 @@ class Connection:
 
     def __init__(self, socket):
         self.socket = socket
+
+        self.readers = Connection._default_readers()
+        self.writers = Connection._default_writers()
 
         self.raw = Connection.Raw(config=None, header=None)
         self.config, self.raw.config = self._read_config()
@@ -74,9 +51,16 @@ class Connection:
     def __iter__(self):
         while True:
             try:
-                yield next(self)
+                _, item = next(self)
+                yield item
             except StopIteration:
                 return
+
+    def add_reader(self, slot, reader, *args, **kwargs):
+        self.readers[slot] = lambda readable: reader(readable, *args, **kwargs)
+
+    def add_writer(self, accepts, writer, *args, **kwargs):
+        self.writers.insert(0, (accepts, lambda writable: writer(writable, *args, **kwargs)))
 
     def filter(self, predicate):
         """
@@ -92,7 +76,7 @@ class Connection:
         Sends a message via the connection
         :param item: Message to be sent. Must have corresponding writer
         """
-        for predicate, writer in _writers:
+        for predicate, writer in self.writers:
             if predicate(item):
                 return writer(self, item)
         raise TypeError(f"No appropriate writer found for item of type '{type(item)}'")
@@ -133,9 +117,9 @@ class Connection:
 
         def unknown_message_identifier(*_):
             logging.error(f"Received message (id: {message_identifier}) with no registered readers.")
-            Connection.stop_iteration()
+            raise StopIteration()
 
-        reader = _readers.get(message_identifier, unknown_message_identifier)
+        reader = self.readers.get(message_identifier, unknown_message_identifier)
         return message_identifier, reader(self)
 
     def _read_message_identifier(self):
@@ -154,6 +138,29 @@ class Connection:
         return ismrmrd.xsd.CreateFromDocument(header_bytes), header_bytes
 
     @ staticmethod
-    def stop_iteration():
+    def _default_readers():
+        return {
+            constants.GADGET_MESSAGE_CLOSE: Connection.stop_iteration,
+            constants.GADGET_MESSAGE_ISMRMRD_ACQUISITION: read_acquisition,
+            constants.GADGET_MESSAGE_ISMRMRD_WAVEFORM: read_waveform,
+            constants.GADGET_MESSAGE_ISMRMRD_IMAGE: read_image,
+            constants.GADGET_MESSAGE_IMAGE_ARRAY: read_image_array,
+            constants.GADGET_MESSAGE_RECON_DATA: read_recon_data,
+            constants.GADGET_MESSAGE_BUCKET: read_acquisition_bucket
+        }
+
+    @ staticmethod
+    def _default_writers():
+        return [
+            (lambda item: isinstance(item, ismrmrd.Acquisition), write_acquisition),
+            (lambda item: isinstance(item, ismrmrd.Waveform), write_waveform),
+            (lambda item: isinstance(item, ismrmrd.Image), write_image),
+            (lambda item: isinstance(item, ImageArray), write_image_array),
+            (lambda item: isinstance(item, ReconData), write_recon_data)
+        ]
+
+    @ staticmethod
+    def stop_iteration(_):
+        logging.debug("Connection closed normally.")
         raise StopIteration()
 
