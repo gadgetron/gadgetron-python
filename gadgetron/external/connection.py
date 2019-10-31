@@ -21,12 +21,31 @@ class Connection:
     Consider writing some excellent documentation here.
     """
 
+    class SocketWrapper:
+
+        def __init__(self, socket):
+            self.socket = socket
+
+        def read(self, nbytes):
+            bytes = self.socket.recv(nbytes, socket.MSG_WAITALL)
+            while len(bytes) < nbytes:
+                bytes += self.read(nbytes - len(bytes))
+            return bytes
+
+        def write(self, byte_array):
+            self.socket.sendall(byte_array)
+
+        def close(self):
+            end = constants.GadgetMessageIdentifier.pack(constants.GADGET_MESSAGE_CLOSE)
+            self.socket.send(end)
+            self.socket.close()
+
     class Raw:
         def __init__(self, **fields):
             self.__dict__.update(fields)
 
     def __init__(self, socket):
-        self.socket = socket
+        self.socket = Connection.SocketWrapper(socket)
 
         self.readers = Connection._default_readers()
         self.writers = Connection._default_writers()
@@ -44,8 +63,6 @@ class Connection:
         return self
 
     def __exit__(self, *exception_info):
-        end = constants.GadgetMessageIdentifier.pack(constants.GADGET_MESSAGE_CLOSE)
-        self.socket.send(end)
         self.socket.close()
 
     def __iter__(self):
@@ -77,7 +94,7 @@ class Connection:
     def send(self, item):
         for predicate, writer in self.writers:
             if predicate(item):
-                return writer(self, item)
+                return writer(self.socket, item)
         raise TypeError(f"No appropriate writer found for item of type '{type(item)}'")
 
     def next(self):
@@ -89,15 +106,6 @@ class Connection:
 
         return mid, item
 
-    def read(self, nbytes):
-        bytes = self.socket.recv(nbytes, socket.MSG_WAITALL)
-        while len(bytes) < nbytes:
-            bytes += self.read(nbytes-len(bytes))
-        return bytes
-
-    def write(self, byte_array):
-        self.socket.sendall(byte_array)
-
     def _read_item(self):
         message_identifier = self._read_message_identifier()
 
@@ -106,21 +114,21 @@ class Connection:
             raise StopIteration()
 
         reader = self.readers.get(message_identifier, unknown_message_identifier)
-        return message_identifier, reader(self)
+        return message_identifier, reader(self.socket)
 
     def _read_message_identifier(self):
-        return read(self, constants.GadgetMessageIdentifier)
+        return read(self.socket, constants.GadgetMessageIdentifier)
 
     def _read_config(self):
         message_identifier = self._read_message_identifier()
         assert(message_identifier == constants.GADGET_MESSAGE_CONFIG)
-        config_bytes = read_byte_string(self)
+        config_bytes = read_byte_string(self.socket)
         return xml.fromstring(config_bytes), config_bytes
 
     def _read_header(self):
         message_identifier = self._read_message_identifier()
         assert(message_identifier == constants.GADGET_MESSAGE_HEADER)
-        header_bytes = read_byte_string(self)
+        header_bytes = read_byte_string(self.socket)
         return ismrmrd.xsd.CreateFromDocument(header_bytes), header_bytes
 
     @ staticmethod
