@@ -56,6 +56,13 @@ class Connection:
             except StopIteration:
                 return
 
+    def iter_with_mids(self):
+        while True:
+            try:
+                yield next(self)
+            except StopIteration:
+                return
+
     def add_reader(self, slot, reader, *args, **kwargs):
         self.readers[slot] = lambda readable: reader(readable, *args, **kwargs)
 

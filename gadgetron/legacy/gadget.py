@@ -77,7 +77,7 @@ class Gadget:
             except TypeError:
                 invoke_process(process, args[:-1])
 
-        for mid, item in connection:
+        for mid, item in connection.iter_with_mids():
             if mid in self.hooks:
                 self.hooks.get(mid)(item)
             else:
