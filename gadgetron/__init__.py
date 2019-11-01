@@ -4,6 +4,7 @@ from . import util
 from . import version
 from . import external
 from . import examples
+from . import types
 
 __version__ = version.version
 

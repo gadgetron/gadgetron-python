@@ -10,7 +10,8 @@ setup(
         'gadgetron.util',
         'gadgetron.external',
         'gadgetron.examples',
-        'gadgetron.legacy'
+        'gadgetron.legacy',
+        'gadgetron.types'
     ],
     url='',
     license='MIT',
