@@ -54,7 +54,7 @@ def write_waveforms(destination, waveforms):
 def write_image_array(destination, image_array):
     destination.write(constants.GadgetMessageIdentifier.pack(constants.GADGET_MESSAGE_IMAGE_ARRAY))
     writers.write_array(destination, image_array.data)
-    writers.write_object_array(destination, image_array.header, writers.write_image_header)
+    writers.write_object_array(destination, image_array.headers, writers.write_image_header)
     write_meta_container_vector(destination, image_array.meta)
     writers.write_optional(destination, image_array.waveform, write_waveforms)
     writers.write_optional(destination, image_array.acq_headers, writers.write_object_array, writers.write_acquisition_header)
