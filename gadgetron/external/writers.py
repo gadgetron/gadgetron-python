@@ -40,7 +40,7 @@ def write_image_header(destination, header):
 
 def write_byte_string(destination, byte_string, type=constants.uint32):
     destination.write(type.pack(len(byte_string)))
-    destination.wtite(byte_string)
+    destination.write(byte_string)
 
 
 def write_acquisition(destination, acquisition):
