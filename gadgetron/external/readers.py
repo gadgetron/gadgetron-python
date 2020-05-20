@@ -1,4 +1,3 @@
-
 import ctypes
 import ismrmrd
 
@@ -34,7 +33,8 @@ def read_array(source, numpy_type=numpy.uint64):
 def read_object_array(source, read_object):
     dimensions = read_vector(source)
     elements = int(functools.reduce(lambda a, b: a * b, dimensions))
-    return numpy.reshape(numpy.asarray([read_object(source) for _ in range(elements)], dtype=object), dimensions)
+    return numpy.reshape(numpy.asarray([read_object(source) for _ in range(elements)], dtype=object), dimensions,
+                         order='F')
 
 
 def read_image_header(source):
