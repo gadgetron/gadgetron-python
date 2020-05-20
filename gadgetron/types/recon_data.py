@@ -92,9 +92,9 @@ def write_sampling_description(destination, description):
 
 
 def write_recon_buffer(destination, buffer):
-    write_array(destination, buffer.data)
-    write_optional(destination, buffer.trajectory, write_array)
-    write_optional(destination, buffer.density, write_array)
+    write_array(destination, buffer.data, numpy.complex64)
+    write_optional(destination, buffer.trajectory, write_array,numpy.float32)
+    write_optional(destination, buffer.density, write_array,numpy.float32)
     write_object_array(destination, buffer.headers, write_acquisition_header)
     write_sampling_description(destination, buffer.sampling)
 

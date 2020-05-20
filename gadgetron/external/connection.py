@@ -25,6 +25,7 @@ class Connection:
 
         def __init__(self, socket):
             self.socket = socket
+            self.socket.settimeout(None)
 
         def read(self, nbytes):
             bytes = self.socket.recv(nbytes, socket.MSG_WAITALL)

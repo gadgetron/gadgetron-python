@@ -1,5 +1,5 @@
 
-import numpy
+import numpy as np
 
 from ..external import constants
 
@@ -18,14 +18,15 @@ def write_vector(destination, values, type=constants.uint64):
         destination.write(type.pack(val))
 
 
-def write_array(destination, array):
+def write_array(destination, array, dtype):
     write_vector(destination, array.shape)
-    destination.write(array.tobytes(order='F'))
+    array_view = np.array(array,dtype=dtype,copy=False)
+    destination.write(array_view.tobytes(order='F'))
 
 
 def write_object_array(destination, array, writer, *args, **kwargs):
     write_vector(destination, array.shape)
-    for item in numpy.nditer(array, ('refs_ok', 'zerosize_ok'), order='F'):
+    for item in np.nditer(array, ('refs_ok', 'zerosize_ok'), order='F'):
         item = item.item()  # Get rid of the numpy 0-dimensional array.
         writer(destination, item, *args, **kwargs)
 
