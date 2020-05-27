@@ -6,7 +6,7 @@ from ..external import constants
 
 
 class ImageArray:
-    def __init__(self, data, headers, meta, waveform=None, acq_headers=None):
+    def __init__(self, data=None, headers=None, meta=None, waveform=None, acq_headers=None):
         self.data = data
         self.headers = headers
         self.meta = meta
