@@ -17,8 +17,7 @@ from ..types.acquisition_bucket import read_acquisition_bucket
 
 
 class Connection:
-    """ Connection class representing a remote connection via the Gadgetron protocol
-
+    """ Represents a connection to an ISMRMRD client.
     """
 
     class SocketWrapper:
@@ -81,25 +80,58 @@ class Connection:
             except StopIteration:
                 return
 
-    def add_reader(self, slot, reader, *args, **kwargs):
-        self.readers[slot] = lambda readable: reader(readable, *args, **kwargs)
+    def add_reader(self, mid, reader, *args, **kwargs):
+        """ Add a reader to the connection's readers.
+
+        :param mid: The ISMRMRD Message ID for which the reader is called.
+        :param reader: Reader function to be called when `mid` is encountered on the connection.
+        :param args: Additional arguments. These are forwarded to the reader when it's called.
+        :param kwargs: Additional keyword-arguments. These are forwarded to the reader when it's called.
+
+        Add (or overwrite) a reader to the connection's reader-set. Readers are used to deserialize
+        binary ISMRMRD data into usable items.
+        """
+        self.readers[mid] = lambda readable: reader(readable, *args, **kwargs)
 
     def add_writer(self, accepts, writer, *args, **kwargs):
+        """ Add a writer to the connection's writers.
+
+        :param accepts: Predicate used to determine if a writer accepts an item.
+        :param writer: Writer function to be called when `accepts` predicate returned truthy value.
+        :param args: Additional arguments. These are forwarded to the writer when it's called.
+        :param kwargs: Additional keyword-arguments. These are forwarded to the writer when it's called.
+
+        Add a writer to the connection's writer-set. Writers are used to serialize items into appropriate
+        ISMRMRD binary data.
+        """
         self.writers.insert(0, (accepts, lambda writable: writer(writable, *args, **kwargs)))
 
     def filter(self, predicate):
-        """
-         Filters the messages that come through the connection
-        :param predicate: Function returning false if the message should be removed
+        """ Filters the items that come through the Connection.
+
+        :param predicate: Predicate used when filtering items.
+
+        Filters the items returned by `next`, such that only items for which `predicate(item)`
+        returns a truthy value is returned. Items not satisfying the predicate will be silently
+        sent back to the client.
+
+        Accepts types as well as function predicates. Supplying a type is shorthand for `isinstance`
+        based filtering, such that
+            `connection.filter(type)` is equivalent to
+            `connection.filter(lambda item: isinstance(item, type))`
         """
         if isinstance(predicate, type):
             return self.filters.append(lambda o: isinstance(o, predicate))
         self.filters.append(predicate)
 
     def send(self, item):
-        """
-        Sends a message via the connection
-        :param item: Message to be sent. Must have corresponding writer
+        """ Send an item to the client.
+
+        :param item: Item to be sent.
+        :raises: :class:`TypeError`: If no appropriate writer is found.
+
+        Calling send will offer the item to the connection's current writer-set. If
+        an appropriate writer is found, the item is serialized, and sent to the client.
         """
         for predicate, writer in self.writers:
             if predicate(item):
@@ -107,8 +139,19 @@ class Connection:
         raise TypeError(f"No appropriate writer found for item of type '{type(item)}'")
 
     def next(self):
-        """
-        :return: The next message from the connection
+        """ Retrieves the next item available on a connection.
+
+        :return: The next message from the connection (along with the corresponding MessageID).
+        :raises: :class:`StopIteration`: If no more items are available.
+        :raises: :class:`TypeError`: If no appropriate reader is found.
+
+        When `next` is called, the next ISMRMRD message id is read from the connection.
+        This message id is used to select an appropriate reader, which in in turn reads
+        the next item from the connection. The item is returned to the caller.
+
+        If the connection is filtered, only items satisfying the supplied predicate is
+        returned. Any items not satisfying the predicate is silently returned to the
+        client.
         """
         mid, item = self._read_item()
 
