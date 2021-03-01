@@ -1,6 +1,6 @@
 
 major = 1
 minor = 2 
-build = 3
+build = 4
 
 version = f"{major}.{minor}.{build}"
