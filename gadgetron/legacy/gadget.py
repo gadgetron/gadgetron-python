@@ -107,3 +107,10 @@ class Gadget:
 
     def _process_waveform(self, waveform):
         self.process_waveform(waveform)
+    
+
+    def set_parameter(self, name, value):
+        self.params[name] = value
+
+    def get_parameter(self, name):
+        return self.params.get(name, None)
