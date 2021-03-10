@@ -178,7 +178,7 @@ class Connection:
         message_identifier = self._read_message_identifier()
         assert(message_identifier == constants.GADGET_MESSAGE_CONFIG)
         config_bytes = read_byte_string(self.socket)
-        return xml.fromstring(config_bytes), config_bytes
+        return None if config_bytes.strip()==b'<?xml version="1.0"?>' else xml.fromstring(config_bytes), config_bytes
 
     def _read_header(self):
         message_identifier = self._read_message_identifier()
