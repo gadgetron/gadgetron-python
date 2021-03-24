@@ -178,7 +178,14 @@ class Connection:
         message_identifier = self._read_message_identifier()
         assert(message_identifier == constants.GADGET_MESSAGE_CONFIG)
         config_bytes = read_byte_string(self.socket)
-        return xml.fromstring(config_bytes), config_bytes
+
+        try:
+            parsed_config  = xml.fromstring(config_bytes)
+        except xml.ParseError as e:
+            logging.log(logging.WARN,"Config parsing failed with error message {}".format(e))
+            parsed_config = None 
+
+        return parsed_config, config_bytes
 
     def _read_header(self):
         message_identifier = self._read_message_identifier()
