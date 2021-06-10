@@ -29,7 +29,7 @@ class Connection:
         def read(self, nbytes):
             bytes = self.socket.recv(nbytes, socket.MSG_WAITALL)
             while len(bytes) < nbytes:
-                bytes += self.read(nbytes - len(bytes))
+                bytes += self.socket.recv(nbytes - len(bytes),socket.MSG_WAITALL)
             return bytes
 
         def write(self, byte_array):
