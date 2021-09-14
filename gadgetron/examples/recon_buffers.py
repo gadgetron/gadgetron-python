@@ -1,92 +1,98 @@
-import logging
-import numpy as np
-import gadgetron
-import ismrmrd
+
 import time
-from multimethod import multimethod
+import logging
+
+import ismrmrd
+import gadgetron
+import itertools
+import multimethod
+
+import numpy as np
 
 
-def buffer_from_bucket(bucket, header):
-    matrix_size = header.encoding[0].encodedSpace.matrixSize
-    acqs = bucket.data
+def prepare_buffers(input, header):
 
-    logging.debug(f"Assembling buffer from bucket containing {len(acqs)} acquisitions.")
+    def buffer_from_bucket(bucket):
+        matrix_size = header.encoding[0].encodedSpace.matrixSize
+        acquisitions = bucket.data
 
-    number_of_channels = acqs[0].data.shape[0]
-    number_of_samples = acqs[0].data.shape[1]
-    buffer = np.zeros(
-        (number_of_samples, matrix_size.y, matrix_size.z, number_of_channels, 1),
-        dtype=np.complex64
-    )
+        logging.debug(f"Assembling buffer from bucket containing {len(acquisitions)} acquisitions.")
 
-    for acq in acqs:
-        buffer[:, acq.idx.kspace_encode_step_1, acq.idx.kspace_encode_step_2, :, 0] = acq.data.T
+        channels, samples = acquisitions[0].data.shape
+        buffer = np.zeros(
+            (channels, matrix_size.z, matrix_size.y, samples),
+            dtype=np.complex64
+        )
 
-    return buffer, bucket.data[0].getHead()
+        for acq in acquisitions:
+            buffer[:, acq.idx.kspace_encode_step_2, acq.idx.kspace_encode_step_1, :] = acq.data
 
+        return buffer, acquisitions[0]
 
-def reconstruct_image(kspace_data):
-    return gadgetron.util.cifftn(kspace_data, axes=[0, 1, 2])
+    def buffer_from_buffer(buffer):
+        return buffer.data.reshape(buffer.data.shape[:4]).transpose(), buffer.headers.item(0)
 
+    @multimethod.multimethod
+    def prepare_buffers(bucket: gadgetron.types.AcquisitionBucket):
+        yield buffer_from_bucket(bucket)
 
-def combine_channels(image):
-    return np.sqrt(np.sum(np.abs(image) ** 2, axis=3))
+    @multimethod.multimethod
+    def prepare_buffers(recon_data: gadgetron.types.ReconData):
+        yield from (buffer_from_buffer(bit.data) for bit in recon_data)
 
-
-def split_image_array(image_data):
-    image_5d_view = image_data.reshape(*image_data.shape[:4], -1)
-    return [image_5d_view[..., i] for i in range(image_5d_view.shape[4])]
-
-
-def create_ismrmrd_image(image_data, reference_acquisition_header):
-    return ismrmrd.image.Image.from_array(image_data, acquisition=reference_acquisition_header)
+    for item in input:
+        yield from prepare_buffers(item)
 
 
-def reconstruct_buffer(kspace_data, reference_header):
-    print(kspace_data.shape)
-    image_data = reconstruct_image(kspace_data)
-    image_data = combine_channels(image_data)
-    image_data_list = split_image_array(image_data)
-    images = [create_ismrmrd_image(img, reference_header) for img in image_data_list]
-    return images
+def reconstruct_images(buffers, header):
 
-def flatten(lists):
-    return sum(lists,[])
+    indices = itertools.count(start=1)
+    field_of_view = header.encoding[0].reconSpace.fieldOfView_mm
 
-@multimethod
-def reconstruct(buffers: gadgetron.types.ReconData, header):
-    return flatten([[image for image in reconstruct_buffer(buffer.data.data, buffer.data.headers.flat[0])] for buffer in
-            buffers])
+    def reconstruct_buffer(data):
+        return gadgetron.util.cifftn(data, axes=[1, 2, 3])
 
+    def combine_channels(data):
+        return np.sqrt(np.sum(np.square(np.abs(data)), axis=0))
 
-@multimethod
-def reconstruct(bucket: gadgetron.types.AcquisitionBucket, header):
-    kspace_data, acq_header = buffer_from_bucket(bucket, header)
-    return reconstruct_buffer(kspace_data, acq_header)
+    def create_ismrmrd_image(data, reference):
+        return ismrmrd.image.Image.from_array(
+            data,
+            acquisition=reference,
+            image_index=next(indices),
+            image_type=ismrmrd.IMTYPE_MAGNITUDE,
+            field_of_view=(field_of_view.x, field_of_view.y, field_of_view.z),
+            transpose=False
+        )
 
+    def build_image(buffer, reference):
 
-def send_images(connection, images):
-    for img in images:
-        print(img.getHead())
-        connection.send(img)
+        buffer = reconstruct_buffer(buffer)
+        buffer = combine_channels(buffer)
+
+        return create_ismrmrd_image(buffer, reference)
+
+    for buffer, reference in buffers:
+        yield build_image(buffer, reference)
 
 
 def recon_buffers(connection):
     logging.info("Python reconstruction running - reconstructing images from acquisition buffers.")
 
+    input = iter(connection)
+    buffers = prepare_buffers(input, connection.header)
+    images = reconstruct_images(buffers, connection.header)
+
     start = time.time()
 
-
-    for data in connection:
-        images = reconstruct(data, connection.header)
-        send_images(connection, images)
+    for image in images:
+        connection.send(image)
 
     logging.info(f"Python reconstruction done. Duration: {(time.time() - start):.2f} s")
 
 
 #######################################################################################################################
 # This allows the file to be run directly as a server
-
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
