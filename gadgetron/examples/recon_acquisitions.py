@@ -2,6 +2,7 @@
 import time
 import logging
 import ismrmrd
+import itertools
 
 import numpy as np
 
@@ -26,12 +27,11 @@ def noise_adjustment(acquisitions, header):
         return np.sqrt(2 * acq.sample_time_us * noise_bandwidth / noise_dwell_time)
 
     def calculate_whitening_transformation(noise):
-        noise = np.asmatrix(noise)
-        covariance = (1.0 / (noise.shape[1] - 1)) * (noise * noise.H)
+        covariance = (1.0 / (noise.shape[1] - 1)) * np.dot(noise, np.transpose(np.conjugate(noise)))
         return np.linalg.inv(np.linalg.cholesky(covariance))
 
     def apply_whitening_transformation(acq):
-        return np.asarray(scaling_factor(acq) * noise_matrix * np.asmatrix(acq.data))
+        return scaling_factor(acq) * np.dot(noise_matrix, acq.data)
 
     def noise_adjust(acq):
         if noise_matrix is not None:
@@ -83,19 +83,18 @@ def accumulate_acquisitions(acquisitions, header):
     def assemble_buffer(acqs):
         logging.debug(f"Assembling buffer from {len(acqs)} acquisitions.")
 
-        number_of_channels = acqs[0].data.shape[0]
-        number_of_samples = acqs[0].data.shape[1]
+        number_of_channels, number_of_samples = acqs[0].data.shape
 
         buffer = np.zeros(
             (number_of_channels,
-             number_of_samples,
+             matrix_size.z,
              matrix_size.y,
-             matrix_size.z),
+             number_of_samples),
             dtype=np.complex64
         )
 
         for acq in acqs:
-            buffer[:, :, acq.idx.kspace_encode_step_1, acq.idx.kspace_encode_step_2] = acq.data
+            buffer[:, acq.idx.kspace_encode_step_2, acq.idx.kspace_encode_step_1, :] = acq.data
 
         return buffer
 
@@ -106,7 +105,10 @@ def accumulate_acquisitions(acquisitions, header):
             accumulated_acquisitions = []
 
 
-def reconstruct_images(buffers):
+def reconstruct_images(buffers, header):
+
+    indices = itertools.count(start=1)
+    field_of_view = header.encoding[0].reconSpace.fieldOfView_mm
 
     def reconstruct_image(kspace_data):
         # Reconstruction is an inverse fft in this case.
@@ -122,7 +124,11 @@ def reconstruct_images(buffers):
     for reference, data in buffers:
         yield ismrmrd.image.Image.from_array(
             combine_channels(reconstruct_image(data)),
-            acquisition=reference
+            acquisition=reference,
+            image_index=next(indices),
+            image_type=ismrmrd.IMTYPE_MAGNITUDE,
+            field_of_view=(field_of_view.x, field_of_view.y, field_of_view.z),
+            transpose = False  # Squelch deprecation warning; we are in line with future behaviour.
         )
 
 
@@ -140,7 +146,7 @@ def recon_acquisitions(connection):
     acquisitions = noise_adjustment(acquisitions, connection.header)
     acquisitions = remove_oversampling(acquisitions, connection.header)
     buffers = accumulate_acquisitions(acquisitions, connection.header)
-    images = reconstruct_images(buffers)
+    images = reconstruct_images(buffers, connection.header)
 
     for image in images:
         logging.debug("Sending image back to client.")
