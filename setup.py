@@ -1,10 +1,13 @@
 from setuptools import setup
 
-import gadgetron
 
+version = {}
+with open("gadgetron/version.py") as fp:
+    exec(fp.read(), version)
+# later on we use: version['__version__']
 setup(
     name='gadgetron',
-    version=gadgetron.__version__,
+    version=version['version'],
     packages=[
         'gadgetron',
         'gadgetron.util',
@@ -22,6 +25,6 @@ setup(
         'numpy>=1.15.1',
         'ismrmrd>=1.6.2',
         'pyFFTW>=0.11',
-        'multimethod'
+        'multimethod >= 1.0'
     ]
 )
