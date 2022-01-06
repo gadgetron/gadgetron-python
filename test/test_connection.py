@@ -25,7 +25,7 @@ def parrot_server(socket):
             connection.send(item)
 
 def run_connection_test(testdata):
-    sock1, sock2 = socket.socketpair(socket.AF_INET)
+    sock1, sock2 = socket.socketpair()
     sock1.setblocking(True)
     sock2.setblocking(True)
     with cf.ProcessPoolExecutor(max_workers=2) as executor:
