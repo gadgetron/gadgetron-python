@@ -21,7 +21,6 @@ from .types.recon_data import SamplingDescription, SamplingLimit
 
 __all__ = [
     util,
-    legacy,
     external,
     examples,
     Gadget,
