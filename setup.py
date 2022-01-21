@@ -25,6 +25,7 @@ setup(
         'numpy>=1.15.1',
         'ismrmrd>=1.6.2',
         'pyFFTW>=0.11',
-        'multimethod >= 1.0'
+        'multimethod>=1.0',
+        'requests>=2.24'
     ]
 )

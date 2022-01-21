@@ -1,9 +1,11 @@
 
+import os
+import socket
 import logging
 
-import socket
-
 from . import connection
+
+
 
 
 def wait_for_client_connection(port):
@@ -13,6 +15,7 @@ def wait_for_client_connection(port):
     sock.bind(('', port))
     sock.listen(0)
     conn, address = sock.accept()
+    sock.close()
 
     logging.info(f"Accepted connection from client: {address}")
 
@@ -30,5 +33,7 @@ def listen(port, handler, *args, **kwargs):
     logging.debug(f"Starting external Python module '{handler.__name__}' in state: [PASSIVE]")
     logging.debug(f"Waiting for connection from client on port: {port}")
 
-    with connection.Connection(wait_for_client_connection(port)) as conn:
+    storage_address = kwargs.get('storage_address', os.environ.get("GADGETRON_STORAGE_ADDRESS", None))
+
+    with connection.Connection(wait_for_client_connection(port), storage_address) as conn:
         handler(conn, *args, **kwargs)

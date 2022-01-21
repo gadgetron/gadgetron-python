@@ -67,7 +67,7 @@ class Gadget:
     def handle(self, connection):
         self.connection = connection
         self.params = _parse_params(connection.config)
-        self.process_config(connection.raw_bytes.header)
+        self.process_config(connection.header.toXML())
 
         def invoke_process(process, args):
             if not args:
