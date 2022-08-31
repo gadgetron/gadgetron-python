@@ -1,0 +1,32 @@
+{% set data = load_setup_py_data() %}
+
+package:
+  name: gadgetron-python
+  version: {{ data.get('version') }}
+
+source:
+  path: ../
+
+requirements:
+  build:
+    - python {{ python }}
+    - ismrmrd-python>=1.12.5
+    - numpy>=1.22.0
+    - pyFFTW>=0.11
+    - multimethod>=1.0
+
+  run:
+    - python
+    - numpy>=1.22.0
+    - pyFFTW>=0.11
+    - multimethod>=1.0
+    - ismrmrd-python>=1.12.5
+
+about:
+  home: https://github.com/gadgetron/gadgetron-python
+  license: MIT
+  summary: 'Python interface for Gadgetron'
+  description: |
+    Interface and utilities for the writing Gadgetron applications in Python.
+  dev_url: https://github.com/gadgetron/gadgetron-python
+  doc_url: https://github.com/gadgetron/gadgetron-python

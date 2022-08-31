@@ -22,9 +22,9 @@ setup(
     author_email='kristofferlknudsen@gradientsoftware.net',
     description='',
     install_requires=[
-        'numpy>=1.15.1',
-        'ismrmrd>=1.6.2',
+        'numpy>=1.22',
+        'ismrmrd>=1.12.5',
         'pyFFTW>=0.11',
-        'multimethod >= 1.0'
+        'multimethod>=1.0'
     ]
 )
