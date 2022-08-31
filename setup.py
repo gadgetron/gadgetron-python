@@ -1,5 +1,5 @@
 from setuptools import setup
-
+from pathlib import Path
 
 version = {}
 with open("gadgetron/version.py") as fp:
