@@ -1,3 +1,3 @@
 # Gadgetron Python
 
-Python interface for Gadgertron.
+Python interface for Gadgetron.
