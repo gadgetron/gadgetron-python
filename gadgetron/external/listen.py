@@ -10,8 +10,7 @@ def wait_for_client_connection(port, use_ipv4):
     if use_ipv4:
         sock = socket.socket(family=socket.AF_INET)
     else:
-        try:
-            sock = socket.socket(family=socket.AF_INET6)
+        sock = socket.socket(family=socket.AF_INET6)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     sock.bind(('', port))
     sock.listen(0)
